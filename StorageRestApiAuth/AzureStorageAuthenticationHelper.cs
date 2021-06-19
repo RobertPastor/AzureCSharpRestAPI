@@ -34,31 +34,39 @@ namespace StorageRestApiAuth
            string storageAccountName, string storageAccountKey, DateTime now,
            HttpRequestMessage httpRequestMessage, string ifMatch = "", string md5 = "")
         {
-            // This is the raw representation of the message signature.
-            HttpMethod method = httpRequestMessage.Method;
-            String MessageSignature = String.Format("{0}\n\n\n{1}\n{5}\n\n\n\n{2}\n\n\n\n{3}{4}",
-                      method.ToString(),
-                      (method == HttpMethod.Get || method == HttpMethod.Head) ? String.Empty
-                        : httpRequestMessage.Content.Headers.ContentLength.ToString(),
-                      ifMatch,
-                      GetCanonicalizedHeaders(httpRequestMessage),
-                      GetCanonicalizedResource(httpRequestMessage.RequestUri, storageAccountName),
-                      md5);
+            try
+            {
+                // This is the raw representation of the message signature.
+                HttpMethod method = httpRequestMessage.Method;
+                String MessageSignature = String.Format("{0}\n\n\n{1}\n{5}\n\n\n\n{2}\n\n\n\n{3}{4}",
+                          method.ToString(),
+                          (method == HttpMethod.Get || method == HttpMethod.Head) ? String.Empty
+                            : httpRequestMessage.Content.Headers.ContentLength.ToString(),
+                          ifMatch,
+                          GetCanonicalizedHeaders(httpRequestMessage),
+                          GetCanonicalizedResource(httpRequestMessage.RequestUri, storageAccountName),
+                          md5);
 
-            // Now turn it into a byte array.
-            byte[] SignatureBytes = Encoding.UTF8.GetBytes(MessageSignature);
+                // Now turn it into a byte array.
+                byte[] SignatureBytes = Encoding.UTF8.GetBytes(MessageSignature);
 
-            // Create the HMACSHA256 version of the storage key.
-            HMACSHA256 SHA256 = new HMACSHA256(Convert.FromBase64String(storageAccountKey));
+                // Create the HMACSHA256 version of the storage key.
+                HMACSHA256 SHA256 = new HMACSHA256(Convert.FromBase64String(storageAccountKey));
 
-            // Compute the hash of the SignatureBytes and convert it to a base64 string.
-            string signature = Convert.ToBase64String(SHA256.ComputeHash(SignatureBytes));
+                // Compute the hash of the SignatureBytes and convert it to a base64 string.
+                string signature = Convert.ToBase64String(SHA256.ComputeHash(SignatureBytes));
 
-            // This is the actual header that will be added to the list of request headers.
-            // You can stop the code here and look at the value of 'authHV' before it is returned.
-            AuthenticationHeaderValue authHV = new AuthenticationHeaderValue("SharedKey",
-                storageAccountName + ":" + Convert.ToBase64String(SHA256.ComputeHash(SignatureBytes)));
-            return authHV;
+                // This is the actual header that will be added to the list of request headers.
+                // You can stop the code here and look at the value of 'authHV' before it is returned.
+                AuthenticationHeaderValue authHV = new AuthenticationHeaderValue("SharedKey",
+                    storageAccountName + ":" + Convert.ToBase64String(SHA256.ComputeHash(SignatureBytes)));
+                return authHV;
+            }
+            catch(SystemException e)
+            {
+                Console.WriteLine("----> error -> {0}" , e.Message);
+            }
+            return null;
         }
 
         /// <summary>

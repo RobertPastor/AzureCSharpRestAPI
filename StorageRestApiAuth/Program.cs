@@ -32,7 +32,9 @@
             Console.ReadLine();
         }
 
-
+        /// <summary>
+        /// This is the method to call the REST API to retrieve a list of
+        /// blobs in the specific storage account container
         private static async Task ListContainerContentAsyncREST(string storageAccountName, string containerName, string storageAccountKey, CancellationToken cancellationToken)
         {
 
@@ -58,6 +60,7 @@
                 // Add the request headers for x-ms-date and x-ms-version.
                 DateTime now = DateTime.UtcNow;
                 httpRequestMessage.Headers.Add("x-ms-date", now.ToString("R", CultureInfo.InvariantCulture));
+                // check for a given version what are the response fields
                 httpRequestMessage.Headers.Add("x-ms-version", "2009-09-19");
                 // If you need any additional headers, add them here before creating
                 //   the authorization header. 
@@ -65,7 +68,7 @@
                 // Add the authorization header.
                 httpRequestMessage.Headers.Authorization = AzureStorageAuthenticationHelper.GetAuthorizationHeader(
                    storageAccountName, storageAccountKey, now, httpRequestMessage);
-
+                
                 // Send the request.
                 using (HttpResponseMessage httpResponseMessage = await new HttpClient().SendAsync(httpRequestMessage, cancellationToken))
                 {
@@ -92,7 +95,6 @@
                     }
                 }
             }
-
         }
 
             /// <summary>
@@ -134,30 +136,39 @@
                 httpRequestMessage.Headers.Authorization = AzureStorageAuthenticationHelper.GetAuthorizationHeader(
                    storageAccountName, storageAccountKey, now, httpRequestMessage);
 
-                // Send the request.
-                using (HttpResponseMessage httpResponseMessage = await new HttpClient().SendAsync(httpRequestMessage, cancellationToken))
+                if (httpRequestMessage.Headers.Authorization == null)
                 {
-                    // If successful (status code = 200), 
-                    //   parse the XML response for the container names.
-                    if (httpResponseMessage.StatusCode == HttpStatusCode.OK)
-                    {
-                        Console.WriteLine(httpResponseMessage.ToString());
 
-                        String xmlString = await httpResponseMessage.Content.ReadAsStringAsync();
-                        XElement x = XElement.Parse(xmlString);
-                        foreach (XElement container in x.Element("Containers").Elements("Container"))
+                    Console.WriteLine("====> problem raised while building the Authorization header");
+                }
+                else
+                {
+                    // Send the request.
+                    using (HttpResponseMessage httpResponseMessage = await new HttpClient().SendAsync(httpRequestMessage, cancellationToken))
+                    {
+                        // If successful (status code = 200), 
+                        //   parse the XML response for the container names.
+                        if (httpResponseMessage.StatusCode == HttpStatusCode.OK)
                         {
-                            Console.WriteLine("Container name = {0}", container.Element("Name").Value);
+                            Console.WriteLine(httpResponseMessage.ToString());
 
-                            // List blobs in a container
-                            string containerName = container.Element("Name").Value;
-                            ListContainerContentAsyncREST(StorageAccountName, containerName, StorageAccountKey, CancellationToken.None).GetAwaiter().GetResult();
+                            String xmlString = await httpResponseMessage.Content.ReadAsStringAsync();
+                            XElement x = XElement.Parse(xmlString);
+                            foreach (XElement container in x.Element("Containers").Elements("Container"))
+                            {
+                                Console.WriteLine("Container name = {0}", container.Element("Name").Value);
 
+                                // List blobs in a container
+                                string containerName = container.Element("Name").Value;
+                                ListContainerContentAsyncREST(StorageAccountName, containerName, StorageAccountKey, CancellationToken.None).GetAwaiter().GetResult();
+
+                            }
                         }
-                    } else
-                    {
-                        Console.WriteLine(httpResponseMessage.ToString());
-                        Console.WriteLine("Status code = {0}" , httpResponseMessage.StatusCode.ToString());
+                        else
+                        {
+                            Console.WriteLine(httpResponseMessage.ToString());
+                            Console.WriteLine("Status code = {0}", httpResponseMessage.StatusCode.ToString());
+                        }
                     }
                 }
             }
