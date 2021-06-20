@@ -7,12 +7,17 @@
     using System.Threading;
     using System.Threading.Tasks;
     using System.Xml.Linq;
+    using System.IO;
+    
+    using Newtonsoft.Json;
 
     internal static class Program
     {
         static string StorageAccountName = "amsairdatastorageaccount";
         static string StorageAccountKey = "";
-        
+        static FileStream fs;
+        static BlobStorageData blobStorageData;
+
         private static void Main()
         {
 
@@ -25,8 +30,26 @@
             // display the line
             Console.WriteLine("Storage Account Access Key = {0}", StorageAccountKey);
 
-            // List the containers in a storage account.
-            ListContainersAsyncREST(StorageAccountName, StorageAccountKey, CancellationToken.None).GetAwaiter().GetResult();
+            // local path
+            string sPath = System.AppDomain.CurrentDomain.BaseDirectory;
+            Console.WriteLine(sPath);
+            string outputFileName = "AMSAirDataBlobStorage.json";
+            sPath = System.IO.Path.Combine(sPath, outputFileName);
+            try
+            {
+                blobStorageData = new BlobStorageData(StorageAccountName);
+                fs = File.Create(sPath);
+                // List the containers in a storage account.
+                ListContainersAsyncREST(StorageAccountName, StorageAccountKey, CancellationToken.None).GetAwaiter().GetResult();
+                string json = JsonConvert.SerializeObject(blobStorageData, Formatting.Indented);
+                byte[] bytes = System.Text.Encoding.UTF8.GetBytes(json);
+                fs.Write(bytes, 0, bytes.Length);
+                fs.Close();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+            }
 
             Console.WriteLine("It is finished -> Press any key to end the program.");
             Console.ReadLine();
@@ -35,7 +58,7 @@
         /// <summary>
         /// This is the method to call the REST API to retrieve a list of
         /// blobs in the specific storage account container
-        private static async Task ListContainerContentAsyncREST(string storageAccountName, string containerName, string storageAccountKey, CancellationToken cancellationToken)
+        private static async Task ListContainerContentAsyncREST(BlobContainerData blobContainerData, string storageAccountName, string containerName, string storageAccountKey, CancellationToken cancellationToken)
         {
 
             // Construct the URI. This will look like this:
@@ -86,6 +109,9 @@
                             Console.WriteLine("Blob Last Modified = {0}", blob.Element("Properties").Element("Last-Modified").Value);
                             Console.WriteLine("Blob Content-Length = {0}", blob.Element("Properties").Element("Content-Length").Value);
                             Console.WriteLine("-----------------");
+                            Blob blobContent = new Blob(blob.Element("Name").Value, blob.Element("Properties").Element("Last-Modified").Value, blob.Element("Properties").Element("Content-Length").Value);
+                            blobContainerData.blobs.Add(blobContent);
+
                         }
                     }
                     else
@@ -138,7 +164,6 @@
 
                 if (httpRequestMessage.Headers.Authorization == null)
                 {
-
                     Console.WriteLine("====> problem raised while building the Authorization header");
                 }
                 else
@@ -158,10 +183,12 @@
                             {
                                 Console.WriteLine("Container name = {0}", container.Element("Name").Value);
 
+                                BlobContainerData blobContainerData = new BlobContainerData(container.Element("Name").Value);
                                 // List blobs in a container
                                 string containerName = container.Element("Name").Value;
-                                ListContainerContentAsyncREST(StorageAccountName, containerName, StorageAccountKey, CancellationToken.None).GetAwaiter().GetResult();
+                                ListContainerContentAsyncREST(blobContainerData, StorageAccountName, containerName, StorageAccountKey, CancellationToken.None).GetAwaiter().GetResult();
 
+                                blobStorageData.containers.Add(blobContainerData);
                             }
                         }
                         else
