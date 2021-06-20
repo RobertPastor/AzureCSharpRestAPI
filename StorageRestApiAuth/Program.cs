@@ -33,7 +33,7 @@
             // local path
             string sPath = System.AppDomain.CurrentDomain.BaseDirectory;
             Console.WriteLine(sPath);
-            string outputFileName = "AMSAirDataBlobStorage.json";
+            string outputFileName = "AMSAirDataBlobStorage-" + DateTime.UtcNow.ToString("dd-MMM-yyyy-HH-mm-ss") + "-GMT" + ".json";
             sPath = System.IO.Path.Combine(sPath, outputFileName);
             try
             {
@@ -150,7 +150,6 @@
             using (var httpRequestMessage = new HttpRequestMessage(HttpMethod.Get, uri)
             { Content = (requestPayload == null) ? null : new ByteArrayContent(requestPayload) })
             {
-
                 // Add the request headers for x-ms-date and x-ms-version.
                 DateTime now = DateTime.UtcNow;
                 httpRequestMessage.Headers.Add("x-ms-date", now.ToString("R", CultureInfo.InvariantCulture));

@@ -37,12 +37,12 @@ namespace StorageRestApiAuth
     {
         public string blobName { get; set; }
         public string lastModified;
-        public string contentLength;
+        public string contentLengthBytes;
         public Blob(string _blobName, string _lastModified, string _contentLength)
         {
             blobName = _blobName;
             lastModified = _lastModified;
-            contentLength = _contentLength;
+            contentLengthBytes = _contentLength;
         }
     }
 }
